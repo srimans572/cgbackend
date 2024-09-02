@@ -3,16 +3,19 @@ import multer from "multer";
 import fs from "fs";
 import { pdf } from "pdf-to-img";
 import OpenAI from "openai";
+import dotenv from 'dotenv';
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 const PORT = process.env.PORT || 9000;
+dotenv.config();
+
 
 // i'll put the API key in env file later.
-const API_KEY = process.env.API_KEY;
+
 
 const openai = new OpenAI({
-  apiKey: API_KEY,
+  apiKey: `${process.env.OPENAI_API_KEY}`,
 });
 
 // Function to convert PDF ot BASE64 URLs
