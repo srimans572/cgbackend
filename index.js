@@ -10,10 +10,6 @@ const upload = multer({ storage: multer.memoryStorage() });
 const PORT = process.env.PORT || 9000;
 dotenv.config();
 
-
-// i'll put the API key in env file later.
-
-
 const openai = new OpenAI({
   apiKey: `${process.env.OPENAI_API_KEY}`,
 });
