@@ -13,15 +13,22 @@ const openai = new OpenAI({
   apiKey: `${process.env.OPENAI_API_KEY}`,
 });
 
-// Function to convert PDF ot BASE64 URLs
+// Helper function to calculate elapsed time
+function calculateElapsedTime(startTime) {
+  const endTime = process.hrtime(startTime);
+  const seconds = endTime[0];
+  const nanosecondsConvertedToSeconds = endTime[1] / 1e9;
+  const totalSeconds = seconds + nanosecondsConvertedToSeconds;
+  return totalSeconds.toFixed(2);
+}
+
+// Function to convert PDF to BASE64 URLs
 async function convertPdfFileToImageUrls(buffer) {
   const document = await pdf(buffer);
-
   const pages = [];
 
   for await (const page of document) {
     const base64Image = Buffer.from(page).toString("base64");
-    //below is the json that should be sent to openai
     pages.push({
       type: "image_url",
       image_url: {
@@ -36,13 +43,17 @@ async function convertPdfFileToImageUrls(buffer) {
 // Route to handle PDF uploads
 app.post("/upload", upload.single("pdf"), async (req, res) => {
   try {
-    const time = process.hrtime();
+    const totalStartTime = process.hrtime();
     const buffer = req.file.buffer;
-    // Convert PDF to image base64 URLs first
+
+    // Time the PDF to image conversion
+    const conversionStartTime = process.hrtime();
     const pages = await convertPdfFileToImageUrls(buffer);
+    const conversionTime = calculateElapsedTime(conversionStartTime);
 
     // Array to store the results of the page chunks from OpenAI API, then loop thru the data
     const results = [];
+    const apiCall1StartTime = process.hrtime();
 
     // Send 3 pages at a time to the OpenAI API (ideally to minimize response time)
     for (let i = 0; i < pages.length; i += 3) {
@@ -75,7 +86,10 @@ app.post("/upload", upload.single("pdf"), async (req, res) => {
       results.push(response.choices[0].message.content);
     }
 
-    // Make a final API call to get an overall score (like on the cograder website)
+    const apiCall1Time = calculateElapsedTime(apiCall1StartTime);
+
+    // Time the final API call for overall summary and score
+    const apiCall2StartTime = process.hrtime();
     const finalResponse = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -109,15 +123,20 @@ app.post("/upload", upload.single("pdf"), async (req, res) => {
         },
       ],
     });
-    const endTime = process.hrtime(time);
-    const seconds = endTime[0];
-    const nanosecondsConvertedToSeconds = endTime[1] / 1e9;
-    const totalSeconds = seconds + nanosecondsConvertedToSeconds;
-    const finalTime = totalSeconds.toFixed(2);
+    const apiCall2Time = calculateElapsedTime(apiCall2StartTime);
+
+    const totalTime = calculateElapsedTime(totalStartTime);
+
+    // Respond with the final JSON including timing information
     res.json({
       content: JSON.parse(finalResponse.choices[0].message.content),
       results: results,
-      time: finalTime,
+      time: {
+        conversionTime: `${conversionTime} seconds`,
+        apiCall1Time: `${apiCall1Time} seconds`,
+        apiCall2Time: `${apiCall2Time} seconds`,
+        totalTime: `${totalTime} seconds`,
+      },
     });
   } catch (err) {
     console.error("Error:", err);
