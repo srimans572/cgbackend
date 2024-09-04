@@ -132,10 +132,9 @@ app.post("/upload", upload.single("pdf"), async (req, res) => {
       content: JSON.parse(finalResponse.choices[0].message.content),
       results: results,
       time: {
-        conversionTime: `${conversionTime} seconds`,
-        apiCall1Time: `${apiCall1Time} seconds`,
-        apiCall2Time: `${apiCall2Time} seconds`,
-        totalTime: `${totalTime} seconds`,
+        conversionTime: conversionTime,
+        apiCall1Time: apiCall1Time,
+        apiCall2Time: apiCall2Time,
       },
     });
   } catch (err) {
