@@ -1,9 +1,8 @@
 import express from "express";
 import multer from "multer";
-import fs from "fs";
 import { pdf } from "pdf-to-img";
 import OpenAI from "openai";
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -37,12 +36,12 @@ async function convertPdfFileToImageUrls(buffer) {
 // Route to handle PDF uploads
 app.post("/upload", upload.single("pdf"), async (req, res) => {
   try {
+    const time = process.hrtime();
     const buffer = req.file.buffer;
-
-    // Convert PDF to image URLs first
+    // Convert PDF to image base64 URLs first
     const pages = await convertPdfFileToImageUrls(buffer);
 
-    // Array to store the results from OpenAI API, then loop thru the data
+    // Array to store the results of the page chunks from OpenAI API, then loop thru the data
     const results = [];
 
     // Send 3 pages at a time to the OpenAI API (ideally to minimize response time)
@@ -76,7 +75,7 @@ app.post("/upload", upload.single("pdf"), async (req, res) => {
       results.push(response.choices[0].message.content);
     }
 
-    // Make a final API call to get an overall score (like omn the cograder website)
+    // Make a final API call to get an overall score (like on the cograder website)
     const finalResponse = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -110,9 +109,16 @@ app.post("/upload", upload.single("pdf"), async (req, res) => {
         },
       ],
     });
-
-    
-    res.json(JSON.parse(finalResponse.choices[0].message.content));
+    const endTime = process.hrtime(time);
+    const seconds = endTime[0];
+    const nanosecondsConvertedToSeconds = endTime[1] / 1e9;
+    const totalSeconds = seconds + nanosecondsConvertedToSeconds;
+    const finalTime = totalSeconds.toFixed(2);
+    res.json({
+      content: JSON.parse(finalResponse.choices[0].message.content),
+      results: results,
+      time: finalTime,
+    });
   } catch (err) {
     console.error("Error:", err);
     res.status(500).send("An error occurred while processing the PDF.");
